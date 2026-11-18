@@ -217,7 +217,7 @@ def title_banner() -> Image.Image:
     tx = (W - tw) / 2
     d.text((tx + 2, 20), text, font=font_big, fill=(0, 0, 0, 160))
     d.text((tx, 18), text, font=font_big, fill=(248, 214, 132, 255))
-    sub = "MAZE GAME  ·  RAYLIB 6.0  ·  基础任务"
+    sub = "MAZE GAME  ·  RAYLIB 6.0  ·  基础任务 + 进阶任务 1"
     sw = d.textlength(sub, font=font_small)
     d.text(((W - sw) / 2, 78), sub, font=font_small, fill=(168, 190, 220, 255))
     return img

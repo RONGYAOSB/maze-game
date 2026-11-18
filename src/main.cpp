@@ -7,10 +7,11 @@
 namespace {
 
 void printUsage() {
-    TraceLog(LOG_INFO, "迷宫游戏（基础任务） - Raylib 6.0");
+    TraceLog(LOG_INFO, "迷宫游戏（基础任务 + 进阶任务 1） - Raylib 6.0");
     TraceLog(LOG_INFO, "用法：maze_game [选项] [迷宫文件]");
     TraceLog(LOG_INFO, "  --maze=<文件>   指定迷宫源文件，默认 mazes/maze20.txt");
     TraceLog(LOG_INFO, "  --path-on       启动时打开路径提示");
+    TraceLog(LOG_INFO, "  --skip-title    跳过开始界面直接进入游戏（调试/截图用）");
     TraceLog(LOG_INFO, "  --shot=<png>    渲染若干帧后截图并退出（自动化验证用）");
     TraceLog(LOG_INFO, "  --frames=<n>    截图前等待的帧数，默认 45");
     TraceLog(LOG_INFO, "  --walk=<UDLR>   启动时按方向序列自动移动若干步（调试用）");
@@ -30,6 +31,8 @@ int main(int argc, char** argv) {
         }
         if (arg == "--path-on" || arg == "-p") {
             options.showPath = true;
+        } else if (arg == "--skip-title") {
+            options.skipTitle = true;
         } else if (arg.rfind("--maze=", 0) == 0) {
             options.mazePath = arg.substr(7);
         } else if (arg == "--maze" && i + 1 < argc) {
@@ -52,7 +55,8 @@ int main(int argc, char** argv) {
     }
 
     SetTraceLogLevel(LOG_INFO);
-    InitWindow(game::kWindowWidth, game::kWindowHeight, "迷宫游戏 - 基础任务 (Raylib 6.0)");
+    InitWindow(game::kWindowWidth, game::kWindowHeight,
+               "迷宫游戏 - 基础任务 + 进阶任务 1 (Raylib 6.0)");
     if (!IsWindowReady()) {
         TraceLog(LOG_ERROR, "窗口初始化失败");
         return 1;

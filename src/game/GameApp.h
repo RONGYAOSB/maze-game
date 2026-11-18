@@ -15,9 +15,16 @@ inline constexpr int kWindowHeight = 900;
 struct Options {
     std::string mazePath = "mazes/maze20.txt";
     bool showPath = false;
+    bool skipTitle = false;   // 调试/截图用：跳过开始界面直接进入游戏
     int shotAfterFrames = 0;  // >0 时在若干帧后截图并退出（用于自动化验证）
     std::string shotPath;
     std::string walk;  // 调试用：启动时按 "U/D/L/R" 序列自动走几步
+};
+
+// 画面状态：开始界面 -> 游戏中
+enum class Screen {
+    Title,
+    Playing,
 };
 
 // 游戏主控：组织迷宫、小人、路径提示与界面绘制，并处理键盘输入。
@@ -38,12 +45,14 @@ private:
     void draw();
     void recomputePath();
     void resetPlayer();
+    void startGame();
 
     Options options_;
     maze::Maze maze_;
     maze::Player player_;
     maze::PathResult path_;
     Renderer renderer_;
+    Screen screen_ = Screen::Title;
     bool showPath_ = false;
     bool win_ = false;
     float timeSeconds_ = 0.0f;

@@ -197,10 +197,70 @@ void Renderer::drawWinOverlay() {
                            mazeRect.y + mazeRect.height * 0.5f - 82.0f, 460.0f, 164.0f};
     DrawRectangleRounded(box, 0.10f, 10, Color{22, 26, 38, 248});
     DrawRectangleRoundedLinesEx(box, 0.10f, 10, 2.0f, kGold);
-    text_.drawCentered("到达终点！", mazeRect.x + mazeRect.width * 0.5f, box.y + 24.0f, 46.0f,
+    text_.drawCentered("到达终点！", mazeRect.x + mazeRect.width * 0.5f, box.y + 22.0f, 46.0f,
                        kGold);
-    text_.drawCentered("按 R 重新开始", mazeRect.x + mazeRect.width * 0.5f, box.y + 96.0f, 22.0f,
-                       kText);
+    text_.drawCentered("按 R 重新开始     按 空格 返回开始界面",
+                       mazeRect.x + mazeRect.width * 0.5f, box.y + 96.0f, 20.0f, kText);
+}
+
+// 开始界面：标题图片 + 呼吸闪烁的“按 空格 键 开始游戏”提示
+void Renderer::drawTitleScreen(float timeSeconds) {
+    const int width = GetScreenWidth();
+    const int height = GetScreenHeight();
+    DrawRectangleGradientV(0, 0, width, height, kBgTop, kBgBottom);
+    DrawRectangleRoundedLinesEx(
+        Rectangle{40.0f, 40.0f, static_cast<float>(width) - 80.0f,
+                  static_cast<float>(height) - 80.0f},
+        0.01f, 4, 1.0f, Color{246, 208, 120, 45});
+
+    if (banner_.id != 0) {
+        const float bannerWidth = std::min(900.0f, static_cast<float>(width) * 0.72f);
+        const float scale = bannerWidth / static_cast<float>(banner_.width);
+        const float bannerHeight = static_cast<float>(banner_.height) * scale;
+        DrawTexturePro(banner_, Rectangle{0.0f, 0.0f, static_cast<float>(banner_.width),
+                                          static_cast<float>(banner_.height)},
+                       Rectangle{(width - bannerWidth) * 0.5f, height * 0.24f - bannerHeight * 0.5f,
+                                 bannerWidth, bannerHeight},
+                       Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+    }
+
+    const float centerX = width * 0.5f;
+    const float phase = 0.55f + 0.45f * (0.5f + 0.5f * std::sin(timeSeconds * 2.8f));
+    text_.drawCentered("按 空格 键 开始游戏", centerX, height * 0.47f, 40.0f,
+                       Color{248, 214, 132, static_cast<unsigned char>(255.0f * phase)});
+    text_.drawCentered("从起点出发，到达终点即胜利；按 P 显示最短路径", centerX,
+                       height * 0.47f + 52.0f, 20.0f, kDim);
+
+    DrawLineEx(Vector2{centerX - 260.0f, height * 0.47f + 84.0f},
+               Vector2{centerX + 260.0f, height * 0.47f + 84.0f}, 1.0f,
+               Color{246, 208, 120, 60});
+
+    text_.drawCentered("方向键 移动    P 路径提示    R 重新开始    1 / 2 切换迷宫    ESC 退出",
+                       centerX, height * 0.47f + 106.0f, 21.0f, kDim);
+
+    // 地块图鉴：填充中部空白，同时说明各种地块
+    struct LegendItem {
+        maze::Tile tile;
+        const char* label;
+    };
+    static const LegendItem kItems[] = {
+        {maze::Tile::Ground, "普通地面"}, {maze::Tile::Grass, "草地"},
+        {maze::Tile::Lava, "熔岩"},       {maze::Tile::Wall, "墙"},
+        {maze::Tile::Start, "起点"},      {maze::Tile::End, "终点"},
+    };
+    constexpr int kItemCount = static_cast<int>(sizeof(kItems) / sizeof(kItems[0]));
+    constexpr float kItemWidth = 96.0f;
+    const float legendY = height * 0.66f;
+    const float legendStartX = centerX - kItemWidth * kItemCount * 0.5f;
+    for (int i = 0; i < kItemCount; ++i) {
+        const float itemX = legendStartX + kItemWidth * i + kItemWidth * 0.5f;
+        drawTile(kItems[i].tile, itemX - 16.0f, legendY, 32.0f);
+        text_.drawCentered(kItems[i].label, itemX, legendY + 40.0f, 17.0f, kDim);
+    }
+
+    text_.drawCentered("20 x 20 自设计迷宫    Raylib 6.0", centerX, height - 104.0f, 19.0f, kDim);
+    text_.drawCentered("基础任务 + 进阶任务 1", centerX, height - 74.0f, 19.0f,
+                       Color{246, 208, 120, 170});
 }
 
 void Renderer::drawLegendRow(float x, float y, maze::Tile tile, const char* label,
@@ -240,7 +300,9 @@ void Renderer::drawPanel(const maze::Maze& maze, const maze::Player& player,
     statRow("迷宫", maze.title().c_str(), kText);
     statRow("尺寸", TextFormat("%d x %d", maze.rows(), maze.cols()), kText);
     if (showPath) {
-        if (path.found) {
+        if (player.cell() == maze.end()) {
+            statRow("最短路径", "已到达终点", kGreen);
+        } else if (path.found) {
             statRow("最短路径", TextFormat("%d 步 / 代价 %d", static_cast<int>(path.cells.size()) - 1,
                                             path.cost),
                     kText);

@@ -11,7 +11,7 @@ namespace {
 const char* kUiText =
     "状态路径提示开关步数位置迷宫行列尺寸最短代价无可行控制方向键移动显示隐藏重新开始切换图例"
     "普通地面墙草地熔岩起点终点不可通行到达按当前自设计演示失败载入已最佳从到棋盘格子退出"
-    "游戏任务说明！";
+    "空格进阶返回界面基础游戏任务说明小人出发即胜利！，；";
 
 constexpr int kBaseFontSize = 48;
 constexpr float kSpacing = 0.5f;

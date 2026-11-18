@@ -27,6 +27,9 @@ public:
     void draw(const maze::Maze& maze, const maze::Player& player, const maze::PathResult& path,
               bool showPath, float timeSeconds, bool win);
 
+    // 开始界面（进阶任务 1：按空格开始游戏）
+    void drawTitleScreen(float timeSeconds);
+
     const MazeLayout& layout() const { return layout_; }
 
 private:

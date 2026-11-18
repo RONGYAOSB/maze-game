@@ -10,6 +10,7 @@ namespace game {
 bool GameApp::init(const Options& options, std::string* error) {
     options_ = options;
     showPath_ = options.showPath;
+    screen_ = options.skipTitle ? Screen::Playing : Screen::Title;
 
     const std::string resolved = resolveAssetPath(options.mazePath);
     if (!maze_.load(resolved, error)) {
@@ -139,7 +140,11 @@ void GameApp::update(float deltaSeconds) {
 
 void GameApp::draw() {
     BeginDrawing();
-    renderer_.draw(maze_, player_, path_, showPath_, timeSeconds_, win_);
+    if (screen_ == Screen::Title) {
+        renderer_.drawTitleScreen(timeSeconds_);
+    } else {
+        renderer_.draw(maze_, player_, path_, showPath_, timeSeconds_, win_);
+    }
     EndDrawing();
 }
 
@@ -147,7 +152,19 @@ int GameApp::run() {
     int frames = 0;
     while (!WindowShouldClose()) {
         const float deltaSeconds = GetFrameTime();
-        handleInput(deltaSeconds);
+        if (screen_ == Screen::Title) {
+            // 开始界面：按空格（或回车）开始游戏
+            if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
+                startGame();
+            }
+        } else {
+            handleInput(deltaSeconds);
+            // 胜利后：空格返回开始界面
+            if (win_ && (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER))) {
+                screen_ = Screen::Title;
+                resetPlayer();
+            }
+        }
         update(deltaSeconds);
         draw();
 
@@ -160,6 +177,11 @@ int GameApp::run() {
         }
     }
     return 0;
+}
+
+void GameApp::startGame() {
+    resetPlayer();
+    screen_ = Screen::Playing;
 }
 
 void GameApp::shutdown() {
