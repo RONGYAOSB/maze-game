@@ -30,6 +30,13 @@ public:
     // 读取成功返回 true；失败时通过 error 返回中文错误说明。
     bool load(const std::string& fileName, std::string* error = nullptr);
 
+    // 由内存数据构造迷宫（供随机迷宫生成器使用），不读写文件。
+    bool assign(int rows, int cols, std::vector<Tile> tiles, Cell start, Cell end,
+                const std::string& title);
+
+    // 把当前迷宫写成与源文件同格式的 txt，便于把随机迷宫存档复现。
+    bool save(const std::string& fileName, std::string* error = nullptr) const;
+
     int rows() const { return rows_; }
     int cols() const { return cols_; }
 
