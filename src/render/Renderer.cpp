@@ -190,6 +190,60 @@ void Renderer::drawPlayer(const maze::Player& player) {
     DrawTexturePro(player_, source, dest, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
 }
 
+// 怪物没有贴图资源，直接用几何图形画：暗红身体 + 尖角 + 会发光的眼睛，
+// 与地块贴图风格保持一致，也避免额外引入美术资源。
+void Renderer::drawMonster(const maze::Monster& monster, float timeSeconds) {
+    const int tile = layout_.tile;
+    const float t = monster.progress();
+    const float eased = t * t * (3.0f - 2.0f * t);
+    const maze::Cell from = monster.previous();
+    const maze::Cell to = monster.cell();
+    const float fromX = static_cast<float>(layout_.originX + from.col * tile) + tile * 0.5f;
+    const float fromY = static_cast<float>(layout_.originY + from.row * tile) + tile * 0.5f;
+    const float toX = static_cast<float>(layout_.originX + to.col * tile) + tile * 0.5f;
+    const float toY = static_cast<float>(layout_.originY + to.row * tile) + tile * 0.5f;
+    const float x = fromX + (toX - fromX) * eased;
+    const float y = fromY + (toY - fromY) * eased;
+    const float pulse = 0.5f + 0.5f * std::sin(timeSeconds * 7.0f);
+
+    // 外圈光晕
+    DrawCircleV(Vector2{x, y}, tile * (0.46f + 0.04f * pulse),
+                Color{232, 70, 96, static_cast<unsigned char>(30 + 30.0f * pulse)});
+    DrawCircleLinesV(Vector2{x, y}, tile * 0.44f, Color{232, 70, 96, 120});
+
+    // 尖角
+    const Vector2 leftHorn = {x - tile * 0.26f, y - tile * 0.46f};
+    const Vector2 rightHorn = {x + tile * 0.26f, y - tile * 0.46f};
+    DrawTriangle(Vector2{x - tile * 0.06f, y - tile * 0.16f}, leftHorn,
+                 Vector2{x - tile * 0.30f, y - tile * 0.12f}, Color{120, 26, 44, 255});
+    DrawTriangle(Vector2{x + tile * 0.06f, y - tile * 0.16f}, rightHorn,
+                 Vector2{x + tile * 0.30f, y - tile * 0.12f}, Color{120, 26, 44, 255});
+
+    // 身体
+    DrawCircleV(Vector2{x, y}, tile * 0.34f, Color{64, 14, 26, 255});
+    DrawCircleV(Vector2{x, y - tile * 0.02f}, tile * 0.30f, Color{188, 46, 70, 255});
+    DrawCircleV(Vector2{x - tile * 0.07f, y - tile * 0.09f}, tile * 0.11f,
+                Color{226, 96, 112, 255});
+
+    // 朝向：眼睛往移动方向偏一点
+    const maze::Cell facing = monster.facing();
+    const float offsetX = static_cast<float>(facing.col) * tile * 0.07f;
+    const float offsetY = static_cast<float>(facing.row) * tile * 0.07f;
+    const float eyeRadius = tile * 0.085f;
+    for (const float side : {-1.0f, 1.0f}) {
+        const Vector2 eye = {x + side * tile * 0.12f + offsetX, y - tile * 0.06f + offsetY};
+        DrawCircleV(eye, eyeRadius, Color{255, 238, 214, 255});
+        DrawCircleV(Vector2{eye.x + offsetX * 0.8f, eye.y + offsetY * 0.8f}, eyeRadius * 0.48f,
+                    Color{38, 8, 16, 255});
+    }
+}
+
+void Renderer::drawMonsters(const std::vector<maze::Monster>& monsters, float timeSeconds) {
+    for (const maze::Monster& monster : monsters) {
+        drawMonster(monster, timeSeconds);
+    }
+}
+
 void Renderer::drawWinOverlay() {
     const Rectangle mazeRect = layout_.mazeRect;
     DrawRectangleRec(mazeRect, Color{6, 8, 14, 170});
@@ -199,6 +253,20 @@ void Renderer::drawWinOverlay() {
     DrawRectangleRoundedLinesEx(box, 0.10f, 10, 2.0f, kGold);
     text_.drawCentered("到达终点！", mazeRect.x + mazeRect.width * 0.5f, box.y + 22.0f, 46.0f,
                        kGold);
+    text_.drawCentered("按 R 重新开始     按 空格 返回开始界面",
+                       mazeRect.x + mazeRect.width * 0.5f, box.y + 96.0f, 20.0f, kText);
+}
+
+// 被怪物抓住：红色遮罩 + 提示
+void Renderer::drawCaughtOverlay() {
+    const Rectangle mazeRect = layout_.mazeRect;
+    DrawRectangleRec(mazeRect, Color{22, 4, 8, 180});
+    const Rectangle box = {mazeRect.x + mazeRect.width * 0.5f - 250.0f,
+                           mazeRect.y + mazeRect.height * 0.5f - 82.0f, 500.0f, 164.0f};
+    DrawRectangleRounded(box, 0.10f, 10, Color{30, 14, 20, 250});
+    DrawRectangleRoundedLinesEx(box, 0.10f, 10, 2.0f, kRed);
+    text_.drawCentered("被怪物抓住了！", mazeRect.x + mazeRect.width * 0.5f, box.y + 22.0f, 44.0f,
+                       kRed);
     text_.drawCentered("按 R 重新开始     按 空格 返回开始界面",
                        mazeRect.x + mazeRect.width * 0.5f, box.y + 96.0f, 20.0f, kText);
 }
@@ -235,7 +303,7 @@ void Renderer::drawTitleScreen(float timeSeconds) {
                Vector2{centerX + 260.0f, height * 0.47f + 84.0f}, 1.0f,
                Color{246, 208, 120, 60});
 
-    text_.drawCentered("方向键 移动    P 路径提示    R 重新开始    1 / 2 切换迷宫    ESC 退出",
+    text_.drawCentered("方向键 移动   P 路径提示   M 怪物开/关   3 随机迷宫   ESC 退出",
                        centerX, height * 0.47f + 106.0f, 21.0f, kDim);
 
     // 地块图鉴：填充中部空白，同时说明各种地块
@@ -258,9 +326,10 @@ void Renderer::drawTitleScreen(float timeSeconds) {
         text_.drawCentered(kItems[i].label, itemX, legendY + 40.0f, 17.0f, kDim);
     }
 
-    text_.drawCentered("20 x 20 自设计迷宫    Raylib 6.0", centerX, height - 104.0f, 19.0f, kDim);
-    text_.drawCentered("基础任务 + 进阶任务 1", centerX, height - 74.0f, 19.0f,
-                       Color{246, 208, 120, 170});
+    text_.drawCentered("20 x 20 自设计迷宫 + 随机迷宫    Raylib 6.0", centerX, height - 104.0f, 19.0f,
+                       kDim);
+    text_.drawCentered("基础任务 + 进阶任务 1 + 高级算法: 怪物追击 / 随机迷宫", centerX,
+                       height - 74.0f, 19.0f, Color{246, 208, 120, 170});
 }
 
 void Renderer::drawLegendRow(float x, float y, maze::Tile tile, const char* label,
@@ -274,7 +343,8 @@ void Renderer::drawLegendRow(float x, float y, maze::Tile tile, const char* labe
 }
 
 void Renderer::drawPanel(const maze::Maze& maze, const maze::Player& player,
-                         const maze::PathResult& path, bool showPath) {
+                         const maze::PathResult& path, bool showPath, bool monstersEnabled,
+                         int monsterCount) {
     const Rectangle panel = layout_.panelRect;
     DrawRectangleRounded(panel, 0.03f, 8, kPanelFill);
     DrawRectangleRoundedLinesEx(panel, 0.03f, 8, 1.5f, kPanelLine);
@@ -291,7 +361,7 @@ void Renderer::drawPanel(const maze::Maze& maze, const maze::Player& player,
     const auto statRow = [&](const char* label, const char* value, Color color) {
         text_.draw(label, x, y, 19.0f, kDim);
         text_.draw(value, x + 118.0f, y, 19.0f, color);
-        y += 27.0f;
+        y += 26.0f;
     };
 
     statRow("路径提示", showPath ? "开" : "关", showPath ? kGreen : kDim);
@@ -299,6 +369,8 @@ void Renderer::drawPanel(const maze::Maze& maze, const maze::Player& player,
     statRow("位置", TextFormat("%d, %d", player.cell().row + 1, player.cell().col + 1), kText);
     statRow("迷宫", maze.title().c_str(), kText);
     statRow("尺寸", TextFormat("%d x %d", maze.rows(), maze.cols()), kText);
+    statRow("怪物", monstersEnabled ? TextFormat("%d 只追击", monsterCount) : "已关闭",
+            monstersEnabled ? kRed : kDim);
     if (showPath) {
         if (player.cell() == maze.end()) {
             statRow("最短路径", "已到达终点", kGreen);
@@ -315,37 +387,39 @@ void Renderer::drawPanel(const maze::Maze& maze, const maze::Player& player,
 
     y += 6.0f;
     DrawLineEx(Vector2{x, y}, Vector2{right, y}, 1.0f, Color{246, 208, 120, 50});
-    y += 14.0f;
+    y += 12.0f;
 
     text_.draw("控制", x, y, 24.0f, kGold);
-    y += 34.0f;
+    y += 32.0f;
     const auto keyRow = [&](const char* key, const char* action) {
         text_.draw(key, x, y, 19.0f, kGold);
         text_.draw(action, x + 84.0f, y, 19.0f, kText);
-        y += 27.0f;
+        y += 26.0f;
     };
     keyRow("方向键", "移动");
     keyRow("P", "显示/隐藏路径");
+    keyRow("M", "怪物开/关");
     keyRow("R", "重新开始");
     keyRow("1 / 2", "切换迷宫");
+    keyRow("3", "随机迷宫");
     keyRow("ESC", "退出");
 
-    y += 6.0f;
+    y += 4.0f;
     DrawLineEx(Vector2{x, y}, Vector2{right, y}, 1.0f, Color{246, 208, 120, 50});
-    y += 14.0f;
+    y += 12.0f;
 
     text_.draw("图例", x, y, 24.0f, kGold);
-    y += 36.0f;
+    y += 34.0f;
     drawLegendRow(x, y, maze::Tile::Ground, "普通地面", "1");
-    y += 28.0f;
+    y += 26.0f;
     drawLegendRow(x, y, maze::Tile::Grass, "草地", "3");
-    y += 28.0f;
+    y += 26.0f;
     drawLegendRow(x, y, maze::Tile::Lava, "熔岩", "1000");
-    y += 28.0f;
+    y += 26.0f;
     drawLegendRow(x, y, maze::Tile::Wall, "墙", "不可通行");
-    y += 28.0f;
+    y += 26.0f;
     drawLegendRow(x, y, maze::Tile::Start, "起点", "");
-    y += 28.0f;
+    y += 26.0f;
     drawLegendRow(x, y, maze::Tile::End, "终点", "");
 
     text_.drawRight(TextFormat("FPS %d", GetFPS()), right, panel.y + panel.height - 26.0f, 16.0f,
@@ -353,7 +427,9 @@ void Renderer::drawPanel(const maze::Maze& maze, const maze::Player& player,
 }
 
 void Renderer::draw(const maze::Maze& maze, const maze::Player& player,
-                    const maze::PathResult& path, bool showPath, float timeSeconds, bool win) {
+                    const std::vector<maze::Monster>& monsters, const maze::PathResult& path,
+                    bool showPath, float timeSeconds, bool win, bool caught,
+                    bool monstersEnabled) {
     const int width = GetScreenWidth();
     const int height = GetScreenHeight();
     computeLayout(width, height, maze.rows(), maze.cols());
@@ -382,11 +458,15 @@ void Renderer::draw(const maze::Maze& maze, const maze::Player& player,
     if (showPath) {
         drawPath(path, timeSeconds);
     }
+    drawMonsters(monsters, timeSeconds);
     drawPlayer(player);
     if (win) {
         drawWinOverlay();
+    } else if (caught) {
+        drawCaughtOverlay();
     }
-    drawPanel(maze, player, path, showPath);
+    drawPanel(maze, player, path, showPath, monstersEnabled,
+              static_cast<int>(monsters.size()));
 }
 
 }  // namespace game

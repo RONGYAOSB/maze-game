@@ -124,4 +124,55 @@ int Maze::count(Tile type) const {
     return n;
 }
 
+bool Maze::assign(int rows, int cols, std::vector<Tile> tiles, Cell start, Cell end,
+                  const std::string& title) {
+    if (rows < 3 || cols < 3 || rows > 400 || cols > 400) {
+        return false;
+    }
+    if (tiles.size() != static_cast<size_t>(rows) * static_cast<size_t>(cols)) {
+        return false;
+    }
+    if (start.row < 0 || start.row >= rows || start.col < 0 || start.col >= cols) {
+        return false;
+    }
+    if (end.row < 0 || end.row >= rows || end.col < 0 || end.col >= cols) {
+        return false;
+    }
+    if (tiles[static_cast<size_t>(start.row) * cols + start.col] == Tile::Wall) {
+        return false;
+    }
+    if (tiles[static_cast<size_t>(end.row) * cols + end.col] == Tile::Wall) {
+        return false;
+    }
+
+    rows_ = rows;
+    cols_ = cols;
+    tiles_ = std::move(tiles);
+    start_ = start;
+    end_ = end;
+    source_.clear();
+    title_ = title;
+    return true;
+}
+
+bool Maze::save(const std::string& fileName, std::string* error) const {
+    if (rows_ <= 0 || cols_ <= 0 || tiles_.empty()) {
+        setError(error, "迷宫为空，无法保存");
+        return false;
+    }
+    std::ofstream out{std::filesystem::path(fileName)};
+    if (!out) {
+        setError(error, "无法写入迷宫文件：" + fileName);
+        return false;
+    }
+    out << rows_ << ' ' << cols_ << '\n';
+    for (int r = 0; r < rows_; ++r) {
+        for (int c = 0; c < cols_; ++c) {
+            out << static_cast<int>(tiles_[static_cast<size_t>(index(r, c))]);
+            out << (c + 1 == cols_ ? '\n' : ' ');
+        }
+    }
+    return true;
+}
+
 }  // namespace maze
